@@ -1,6 +1,6 @@
-# reviewer-eval-skill
+# reviewer-eval-skill: an agent skill
 
-A Claude Code skill named `reviewer-eval` for evaluating AI code reviewers using bugs your team already fixed.
+An agent skill named `reviewer-eval` for any coding agent (Claude Code, Codex, Cursor, Gemini CLI and others) to evaluate AI code reviewers using bugs your team already fixed.
 
 Rewind the code to before a known fix, hide the fix, let the reviewer review it like a real pull request, and grade whether it named the real bug. Clean changes count false alarms.
 
@@ -13,19 +13,29 @@ Teaches your coding agent to:
 - Tune a reviewer with a held-out split.
 - Decide whether a paid review bot is worth keeping.
 
-## Install
+## Use it
+
+SKILL.md is plain Markdown with a short YAML header, so any agent can read it.
+
+### Claude Code
 
 ```sh
 git clone https://github.com/manty/reviewer-eval-skill ~/.claude/skills/reviewer-eval
 ```
 
-Claude Code picks it up on the next session.
-
-To update:
+Claude Code picks it up on the next session. To update:
 
 ```sh
 git -C ~/.claude/skills/reviewer-eval pull
 ```
+
+### Any other coding agent
+
+Point it at the file, for example: "read SKILL.md from github.com/manty/reviewer-eval-skill and follow it to test our AI reviewers".
+
+### Agents with a project instruction file
+
+Paste SKILL.md into AGENTS.md or a rules file, or link to it.
 
 ## Example prompts
 
