@@ -42,7 +42,7 @@ description: >-
 1. Collect candidates from git, review comments, and issue history.
 2. Label each candidate by case type:
    - **Reversed fix:** Undo a real fix so the review diff reintroduces the bug. Exclude test files from that diff so deleted tests do not reveal the answer.
-   - **Review-bot catch:** Find a serious human or bot comment on non-test code followed by a fixing commit in the same pull request. Use the exact head the reviewer saw.
+   - **Review-bot catch:** Find a serious human or bot comment on non-test code followed by a fixing commit in the same pull request. Use the exact head the reviewer saw. Treat this label as weak until checked: a later change to the same file is not proof of a fix. In one set, only about 55 percent of such candidates were real bugs that were really fixed.
    - **Agent-built bug:** Find an agent-authored change that needed a later fix. Trace issue history or fixing commits to overlapping lines.
    - **Clean:** Find a merged change with at least 30 days of follow-up, no fix touching its lines, and no serious review comment. Check line overlap rather than commit subjects.
 3. Set quotas per repo, a fixed random seed, and limits on files and changed lines.
@@ -95,6 +95,9 @@ description: >-
 9. Hash the runner, adapters, prompts, schema, judge configuration, and frozen cases.
 10. Require human approval of the manifest hash before execution. Treat changes as a new experiment.
 11. Monitor progress with failure and stall alerts. Wake the operator or supervising agent on the first failure, stall, or freeze.
+12. Re-approve every flow you plan to rerun after any runner change, including older flows.
+13. Enforce staged rules in the runner, then check them in the results. Example: "run the second reviewer only where the first missed." One runner silently reviewed 36 cases it should have skipped.
+14. Run long jobs outside the agent's own job time limit, and make them resumable. Some agent shells kill background jobs after about 2 hours.
 
 ## Step 5: Grade findings
 
@@ -106,6 +109,7 @@ description: >-
 6. Cross-check a sample with a second model. Include catches, misses, clean passes, and false alarms.
 7. Aim for at least 95 percent agreement. Resolve disagreements and revise ambiguous grading rules before trusting scores.
 8. Keep judge failures separate from reviewer failures.
+9. Prove the scorer can report a false alarm before trusting it. Score a clean case as blocked when the decision is not `SHIP`. Do not read a field that only bug cases carry. One scorer did this and showed zero false alarms.
 
 ## Step 6: Score reviewers and pairs
 
@@ -125,6 +129,10 @@ description: >-
 6. Report cost per bug caught with an explicit denominator. Include failed-attempt costs and separate judging overhead.
 7. Run each case three times on small sets. Report per-run results and decision flips rather than treating repetitions as independent bugs.
 8. Treat one-run rankings as provisional because reruns can reverse many decisions.
+9. Report the median number of findings per review. A recall gain that comes with many more findings can be shotgun output.
+10. Score per repo or code area. One reviewer can be strong in one area and blind in another.
+11. Write the scope beside every number: which splits and which runs. Use one scope per table. Medians on different scopes look like errors to a checker.
+12. Compare each variant run with its own matched baseline run. Do not reuse one baseline run for all comparisons.
 
 ## Step 7: Hillclimb with held-out splits
 
@@ -139,14 +147,25 @@ description: >-
 6. Read results across every split before adopting. Treat small validation wins as uncertain.
 7. Retire an exposed test split before further tuning against its failures.
 8. Measure the trade-off between false alarms and misses.
-9. Prioritize experiments with additional context, callers, domain checklists, and whole-pull-request visibility alongside wording changes.
+9. Prioritize experiments with additional context, callers, domain checklists, and whole-pull-request visibility alongside wording changes. Expect many to fail: in one study, four prompt rewrites and a caller-context pack did not beat baseline.
 10. Test effort levels explicitly because additional effort can cost more without improving catches.
+11. Test a different reviewer model for each weak area early. In one study, a model swap for frontend code tripled gap catches when prompt changes had not helped.
+12. Rerun the baseline on every new case set, at the same time and on the same runner as the variants. Old baseline numbers can reflect luck.
+13. If a variant fails the written rule but shows a large gain, offer it as a time-boxed trial with a shadow check. Do not adopt it silently, and do not hide it.
 
 ## Step 8: Learn from misses and decide on a paid reviewer
 
 1. Collect verified bugs caught only by the paid bot into a gap set.
+   - Define a gap before running, for example "our setup caught it in at most 1 of 3 runs."
+   - Mine one case per pull request first. Skip pull requests already in other suites. Group splits by pull request.
+   - Truth-check every gap case before scoring. Sort each into valid, not fixed, not a bug, or needs intent. Confirm which commit is the real fix.
+   - Review bot findings that were never fixed. Some are real bugs worth a ticket.
 2. Tune your reviewers on that set while preserving held-out evaluation.
 3. Shadow-run the winner beside the bot on real pull requests.
+   - Save a ledger for each shadow review: head commit, findings, and line fingerprints, with personal data removed.
+   - Match bot comments to the ledger with a script. Record a reason for each refuted bot-only finding.
+   - Test the matcher on a synthetic ledger before the first real pull request.
+   - Some bots do not re-review a commit they already reviewed. Plan shadow pairs on new commits.
 4. Define the stopping rule before shadowing, for example 10 consecutive pull requests with no new bot-only finding above low severity.
 5. Count only completed paired reviews. Reset the streak after a qualifying bot-only catch.
 6. Confirm that the shadow sample covers representative changes before recommending removal.
@@ -160,7 +179,7 @@ description: >-
    - **How we tested:** Snapshots, isolation, grading, repetitions, and pricing.
    - **Findings:** Scores, errors, uncertainty, and an explicit verdict for each decision.
    - **What we are changing:** Selected setup, rollout, and next evaluation trigger.
-2. Have a second model independently recompute every reported number from raw results before sharing.
+2. Have a second model independently recompute every reported number from raw results before sharing. Send it a code-free capsule: case IDs, grades, decisions, and timings. No private code needs to leave. Include summaries already posted to tickets, because their counts can be wrong too.
 3. Resolve discrepancies in counts, denominators, pair scores, pricing, and claimed improvements.
 4. State limitations such as small samples, selection bias, incomplete runs, and reliance on one primary judge.
 5. Preserve raw results and approved manifests so another engineer can reproduce the decision.
@@ -176,6 +195,11 @@ description: >-
 - [ ] Verify supposedly clean changes against real code.
 - [ ] Recalculate list-price costs instead of trusting tool cost fields.
 - [ ] Reject vague judge matches without file:line and a concrete failure.
+- [ ] Truth-check bot-catch and gap labels; a later file change is not proof of a fix.
+- [ ] Prove the scorer can report a false alarm.
+- [ ] Confirm staged runs skipped the cases they were meant to skip.
+- [ ] Rerun the baseline beside every variant on a new case set.
+- [ ] Write the scope (splits, runs) beside every reported number.
 
 ## Suggested layout
 
